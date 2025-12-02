@@ -1,0 +1,943 @@
+{
+  "name": "Google Drive Image RAG Indexer + Chat",
+  "nodes": [
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "8b550a65-851a-403f-9ed6-a4d5e5563aa3",
+              "name": "=id",
+              "value": "={{ $('Download Image').item.json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "c28b4744-db98-4c34-9a69-4b29e8e98bdc",
+              "name": "filename",
+              "value": "={{ $json.image_filename }}",
+              "type": "string"
+            },
+            {
+              "id": "b08c616b-d9f7-423e-9d18-2f90008a33c5",
+              "name": "=description",
+              "value": "={{ $json.image_description }}",
+              "type": "string"
+            },
+            {
+              "id": "1971eef9-48bc-4e28-90fb-d7a962296fcc",
+              "name": "downloadLink",
+              "value": "={{ $('Download Image').item.json.webContentLink }}",
+              "type": "string"
+            },
+            {
+              "id": "5252645b-45fc-4629-ace4-84b57ac9ec9c",
+              "name": "textForEmbedding",
+              "value": "={{ $json.text_for_embedding }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1376,
+        192
+      ],
+      "id": "28b6ef8c-471d-49b9-b7f9-aa203291c9b7",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "jsCode": "for (const item of items) {\n    \n    // 1. 變數初始化：使用 let 確保之後可以安全地處理空值，並從正確路徑獲取文本。\n    // 使用可選鏈 (?.): 如果路徑中的任一步是 undefined，則直接賦值為空字串 ('')\n    let fullText = item.json.content?.parts?.[0]?.text || ''; \n\n    // 檢查 fullText 是否存在且是字串\n    if (typeof fullText !== 'string' || fullText.length === 0) {\n        // 如果文字不存在，則設置預設值，避免錯誤\n        item.json.image_description = 'No analysis text found.';\n        item.json.image_filename = 'N/A';\n        item.json.text_for_embedding = 'No text.';\n        continue; // 跳到下一個項目\n    }\n\n    // 2. 文本分割邏輯 (這部分程式碼不再需要重複宣告)\n    const filenameMatch = fullText.match(/filename:\\s*(.*)/);\n\n    const filenameIndex = fullText.indexOf('filename:');\n    \n    let description = ''; // 新的變數，不會衝突\n    let filename = '';    // 新的變數，不會衝突\n\n    if (filenameIndex !== -1) {\n        description = fullText.substring(0, filenameIndex).trim();\n    } else {\n        description = fullText.trim();\n    }\n\n    if (filenameMatch && filenameMatch[1]) {\n        filename = filenameMatch[1].trim();\n    }\n\n    // 3. 將分離的數據存入新的 JSON 屬性\n    item.json.image_description = description;\n    item.json.image_filename = filename;\n    item.json.text_for_embedding = description; \n}\n\nreturn items;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1168,
+        192
+      ],
+      "id": "5e0ab5b7-eeaa-4ef6-b9f2-03e68e4db837",
+      "name": "Separate Description and Filename"
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStorePGVector",
+      "typeVersion": 1.3,
+      "position": [
+        1584,
+        192
+      ],
+      "id": "48538ff9-179d-41ba-9df5-b2c3a161336c",
+      "name": "Postgres PGVector Store",
+      "credentials": {
+        "postgres": {
+          "id": "kAjklsXYzKvyJILD",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {
+          "metadata": {
+            "metadataValues": [
+              {
+                "name": "=id",
+                "value": "={{ $('Edit Fields').item.json.id }}"
+              },
+              {
+                "name": "=name",
+                "value": "={{ $('Edit Fields').item.json.filename }}"
+              },
+              {
+                "name": "=downloadLink",
+                "value": "={{ $('Edit Fields').item.json.downloadLink }}"
+              },
+              {
+                "name": "=description",
+                "value": "={{ $('Edit Fields').item.json.description }}"
+              }
+            ]
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
+      "typeVersion": 1.1,
+      "position": [
+        1632,
+        496
+      ],
+      "id": "826c1999-512b-4542-86a8-eebe39bb4207",
+      "name": "Default Data Loader"
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.embeddingsGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        1584,
+        848
+      ],
+      "id": "5bdfc835-dc33-4a23-bc5a-d797fa432dd9",
+      "name": "Embeddings Google Gemini",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "9IYG0lkPaUq6HiO6",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "Use this knowledge base to answer questions from the user",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStorePGVector",
+      "typeVersion": 1.3,
+      "position": [
+        -1056,
+        752
+      ],
+      "id": "2489f4cd-dd38-4a67-9c0c-81d616b6ed1e",
+      "name": "Postgres PGVector Store2",
+      "credentials": {
+        "postgres": {
+          "id": "kAjklsXYzKvyJILD",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "7f6ae9e1-aaeb-4ca7-a5bc-23cb71fe82c5",
+              "leftValue": "={{ $json.query_data.Results.length }}",
+              "rightValue": 1,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -576,
+        496
+      ],
+      "id": "9a374f38-2079-4a92-9b1f-b6be8c6b664d",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        -1264,
+        752
+      ],
+      "id": "173b9638-f81f-4033-b733-e42a98771c72",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "9IYG0lkPaUq6HiO6",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// 獲取 AI Agent 的輸出 (假設 AI Agent 的輸出在 'output' 欄位)\nconst rawOutput = $input.first().json.output;\n\nif (rawOutput) {\n  // 1. 清理字串：移除 Markdown 程式碼區塊標記\n  // (去除字串開頭的 '```json\\n' 和結尾的 '\\n```')\n  let jsonString = rawOutput.trim();\n\n  // 處理開頭的 '```json\\n'\n  if (jsonString.startsWith(\"```json\\n\")) {\n    jsonString = jsonString.substring(\"```json\\n\".length);\n  } else if (jsonString.startsWith(\"```json\")) { // 有些模型可能沒有換行\n    jsonString = jsonString.substring(\"```json\".length);\n  }\n  \n  // 處理結尾的 '\\n```'\n  if (jsonString.endsWith(\"\\n```\")) {\n    jsonString = jsonString.substring(0, jsonString.length - \"\\n```\".length);\n  } else if (jsonString.endsWith(\"```\")) { // 有些模型可能沒有換行\n    jsonString = jsonString.substring(0, jsonString.length - \"```\".length);\n  }\n\n  // 2. 解析 JSON 字串\n  try {\n    const parsedJson = JSON.parse(jsonString.trim());\n    \n    // 3. 輸出新的 JSON 物件，供後續節點使用\n    return [\n      {\n        json: {\n          query_data: parsedJson, // 將解析後的數據儲存在 'query_data' 欄位\n          raw_output: rawOutput // 保留原始輸出以供調試\n        }\n      }\n    ];\n\n  } catch (error) {\n    // 如果解析失敗，則輸出原始數據並記錄錯誤\n    console.error(\"JSON parsing failed:\", error.message);\n    return [\n      {\n        json: {\n          error: \"Failed to parse JSON from AI output.\",\n          original_output: rawOutput\n        }\n      }\n    ];\n  }\n}\n\nreturn $input; // 如果沒有輸出，則傳回原始輸入"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -864,
+        496
+      ],
+      "id": "51621a15-37ca-4cc4-8b8a-bc5869694871",
+      "name": "Clean & Parse LLM Output"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 獲取 AI Agent 解析後的數據，它位於第一個輸入項目的 json.query_data 屬性\nconst inputItem = $input.first().json; \nconst rawData = inputItem.query_data;\nconst outputItems = [];\n\n// 1. 檢查數據結構是否有效\nif (rawData && Array.isArray(rawData.Results)) {\n  const uniqueResults = [];\n  const seenIds = new Set();\n  \n  // --- 階段 1：核心去重邏輯 (只保留唯一ID的結果) ---\n  for (const result of rawData.Results) {\n    const id = result.id; \n\n    // 檢查 id 是否存在且尚未被處理過\n    if (id && !seenIds.has(id)) {\n      seenIds.add(id);\n      uniqueResults.push(result);\n    }\n  }\n\n  // 2. **關鍵修正：** 替換原始的 Results 陣列為去重後的陣列\n  // 這將確保第一個輸出項目 (outputQueryItem) 包含正確且去重後的 Results 陣列\n  rawData.Results = uniqueResults; \n  \n  // 3. 更新 Total_Results 數量 (現在 Total_Results 和 Results 陣列的長度一致)\n  rawData.Total_Results = uniqueResults.length; \n  \n  // 4. 輸出：創建一個包含更新後的元數據和唯一結果的單一項目流\n  \n  // 第一個項目：包含更新後的 Total_Results 和 Results 陣列 (用於 If 節點檢查和最終輸出結構)\n  outputItems.push({\n    json: {\n      ...inputItem, \n      query_data: rawData // rawData 現在包含去重後的 Results 陣列\n    }\n  });\n\n  // 後續項目：去重後的單獨結果 (給 Download Image 節點使用)\n  for (const result of uniqueResults) { \n    // 顯式地將 Filename, id, downloadLink 扁平化\n    outputItems.push({\n      json: {\n        \"Filename\": result.Filename, \n        \"id\": result.id, \n        \"downloadLink\": result.downloadLink \n      }\n    });\n  }\n\n  // 返回單一的陣列輸出，n8n 會將其視為單一輸出流\n  return outputItems; \n}\n\n// 如果未找到陣列或陣列為空，則返回空項目列表\nreturn [];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -352,
+        480
+      ],
+      "id": "9afefcac-12ff-4a3d-97ea-f54369d3906e",
+      "name": "Split Results Array"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "36409a61-a859-4874-bbd7-1622dec1ae7f",
+              "name": "skip",
+              "value": 0,
+              "type": "number"
+            },
+            {
+              "id": "47425f43-8153-4031-93af-3b67100c0d51",
+              "name": "take",
+              "value": 1000,
+              "type": "number"
+            },
+            {
+              "id": "41b96d8c-f5a5-4aa3-a3ac-b9e5e42db023",
+              "name": "all_assets",
+              "value": "[]",
+              "type": "array"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -32,
+        176
+      ],
+      "id": "c4808afb-3d39-46f0-aece-a803f032b95e",
+      "name": "Set Pagination Params"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -272,
+        176
+      ],
+      "id": "a4d51b1d-85e9-47e8-9e49-6c3d930a8dec",
+      "name": "Manual Trigger"
+    },
+    {
+      "parameters": {
+        "url": "https://www.googleapis.com/drive/v3/files",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleDriveOAuth2Api",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "q",
+              "value": "mimeType contains 'image/' and trashed = false"
+            },
+            {
+              "name": "fields",
+              "value": "nextPageToken, files(id, name, mimeType, webContentLink)"
+            },
+            {
+              "name": "pageSize",
+              "value": "1000"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        160,
+        176
+      ],
+      "id": "678c7fdd-4e6d-4fd0-85de-18219e03428a",
+      "name": "List Images from Drive",
+      "notesInFlow": false,
+      "credentials": {
+        "oAuth2Api": {
+          "id": "rOLqsQZpSpMxQ6Tk",
+          "name": "Unnamed credential"
+        },
+        "googleDriveOAuth2Api": {
+          "id": "mt6atyEJse27FUPL",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "files",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        352,
+        176
+      ],
+      "id": "72eac52f-943b-428d-aa64-edf84d193f17",
+      "name": "Split Files"
+    },
+    {
+      "parameters": {
+        "batchSize": 5,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        544,
+        176
+      ],
+      "id": "95be6ef8-6861-44b7-947d-564fd1ded78c",
+      "name": "Batch Images"
+    },
+    {
+      "parameters": {
+        "resource": "image",
+        "operation": "analyze",
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.5-flash",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.5-flash"
+        },
+        "text": "=Analyze the image in depth and produce a single, continuous paragraph that meets all requirements below.\n\nOutput Format: Write everything as one fluid, cohesive paragraph with no bullet points or line breaks.\n\nREQUIREMENTS:\n\n**Detailed Description:** Provide a rich, natural full-sentence description of the image (maximum 30 words).\n\n**Keywords & Tags: **Within the paragraph, incorporate clear English keywords covering these categories: Objects, People, Scene/Setting, Activities, Emotions/Atmosphere, and Primary Colors.\n\n**File Name:** Include a concise image file name (no more than 10 words) that accurately reflects the content.\n\n\nEXAMPLE OUTPUT:\n\"Three friends laughing together at a restaurant table with pizza and wine, illuminated by warm indoor lighting and wearing casual summer attire, conveying a lively and joyful atmosphere. filename: friends-laughing-restaurant.jpg \"",
+        "inputType": "binary",
+        "binaryPropertyName": "image",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1,
+      "position": [
+        960,
+        192
+      ],
+      "id": "81233d16-7014-4d92-880b-9d0fb3e2f39b",
+      "name": "Gemini Vision Analysis",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "9IYG0lkPaUq6HiO6",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $json.id }}",
+          "mode": "id"
+        },
+        "options": {
+          "binaryPropertyName": "image"
+        }
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        752,
+        192
+      ],
+      "id": "bc693fe8-ffc3-4f5b-8553-17125be4f84c",
+      "name": "Download Image",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "mt6atyEJse27FUPL",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "public": true,
+        "options": {
+          "inputPlaceholder": "Type your question.",
+          "subtitle": "Start a chat. We're here to help you 24/7.",
+          "title": "Your Image RAG n8n Agent ",
+          "responseMode": "lastNode"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -1456,
+        496
+      ],
+      "id": "0da6a3b8-3f36-416d-ad25-ae3d94242b15",
+      "name": "Chat Trigger",
+      "webhookId": "ea6b7a74-e360-4e48-aefc-84a134d40441",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "=You are a professional RAG (Retrieval-Augmented Generation) Image Library Assistant, specializing in analyzing and providing detailed information about the user's image collection. Your knowledge base tool (Postgres PGVector Store or similar) retrieves detailed image **descriptions(description)**, filenames (filename), **image IDs (id)**, and download links (downloadLink)(Must also output this four content.\n\nYour core duty is to strictly adhere to three distinct output formats, determined by the user's query intent:\n\n### Rule 1: Indexing Report Query\nIf the user asks for information regarding the \"index status,\" \"report,\" \"data,\" or \"performance,\" you must respond with the pre-defined static text report.\n(Note: The workflow will inject the latest indexing data into the conversation context; you must present this data completely to the user.)\n\n**Example Output Format:**\nIndexed 1000 photos in 45 minutes\nEstimated Time: ~1 hour for 1000 photos (with GPU)\n\n### Rule 2: Instant Retrieval and Listing Query\nIf the user explicitly asks to \"show,\" \"find,\" or \"list\" specific types of photos, your goal is to retrieve and list the results immediately, without generating excessive explanatory text.\n\n1.  **Tool Usage:** You must use your retrieval tool for searching.\n2.  **Output Format:** You must output in **JSON format only**, containing no extra explanatory text or markdown outside the JSON block.\n3.  **Result Quantity:** List all retrieved results (limit to the first 25 if the quantity is very large).\n\n**Example Output Format (Replace with actual retrieval results):**\n```json\n{\n  \"Query\": \"Show me beach photos\",\n  \"Total_Results\": 15,\n  \"Results\": [\n    {\n      \"Filename\": \"beach_sunset_123.jpg\",\n      \"id\": \"1kI_zfEMXm0ponAnNVwsZocDcxI6QAE0\", \n      \"downloadLink\": \"[Beach Photo Download Link A]\"\n    },\n    {\n      \"Filename\": \"beach_walk_456.jpg\",\n      \"id\": \"2gJ_yaPBNn1qTqQWXZvXaDw_i4Sq1G6f\",\n      \"downloadLink\": \"[Beach Photo Download Link B]\"\n    }\n  ]\n}\nRule 3: Comprehensive Summary and Examples Query\nIf the user asks an open-ended, synthetic, or interpretive question (e.g., \"What did I do last Christmas?\", \"Summarize...\"), your goal is to provide a cohesive narrative summary followed by specific examples.\n\nTool Usage: After retrieving relevant data, use your language modeling capabilities to synthesize a summary.\n\nOutput Format: The response must be in natural language, and below the summary, you must explicitly list the filenames, image IDs, and download links for the 3 best example photos that support the summary.\n\nExample Output Format: You spent last Christmas on a wonderful family trip to Paris. You visited the Louvre and enjoyed a lovely dinner by the Seine River.\n\nExample Photo 1 (Family Dinner.jpg, id: 1kI_zfEMXm0): [Download Link A]\n\nExample Photo 2 (Louvre Visit.jpg, id: 2gJ_yaPBNn1): [Download Link B]\n\nExample Photo 3 (Christmas Tree.jpg, id: 3hK_zbQCOo2): [Download Link C]",
+          "passthroughBinaryImages": true
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        -1264,
+        496
+      ],
+      "id": "98c2f51f-b873-49da-a503-c6128a066e28",
+      "name": "Photo RAG Agent"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "memory"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+      "typeVersion": 1.3,
+      "position": [
+        -1168,
+        752
+      ],
+      "id": "80f1a91d-234c-4ac6-9c5a-dfa4fef06dee",
+      "name": "Chat Memory (Postgres)",
+      "credentials": {
+        "postgres": {
+          "id": "kAjklsXYzKvyJILD",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "ed71771b-3cb7-44b7-aa0e-3cca5e52fcb1",
+              "leftValue": "={{ $json.query_data.Total_Results }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -144,
+        480
+      ],
+      "id": "51ac9c39-1b9e-4eb5-8239-31e697ee3ec6",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c27b8196-b787-4abc-ae36-cb3024b631b2",
+              "name": "Results",
+              "value": "={{ $('If1').item.json.query_data.Total_Results }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        80,
+        400
+      ],
+      "id": "d2eb2964-f99a-4579-95be-eb8c5a68539a",
+      "name": "Edit Fields1"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "222842dc-98da-4d47-b74e-4f2c297e17be",
+              "name": "Filename",
+              "value": "={{ $json.Filename }}",
+              "type": "string"
+            },
+            {
+              "id": "a355b576-8bc1-4bbd-a2d9-c8b0085fab96",
+              "name": "id",
+              "value": "={{ $json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "fb886336-dc91-4808-adff-e7e40a750730",
+              "name": "downloadLink",
+              "value": "={{ $json.downloadLink }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        80,
+        560
+      ],
+      "id": "66538ba7-9fe3-47f2-a918-749d6f8f629e",
+      "name": "Edit Fields2"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a dedicated Image RAG Data Reporter. Your task is to process the retrieved image data and generate a comprehensive, fluid, natural language report for the final RAG Assistant.\\n\\n--- INSTRUCTION SET ---\\n\\n1.  **Strict Output:** Your entire output must be a single, continuous block of natural language text. Do NOT use any Markdown (e.g., `#`, `**`, `-`, `*`) unless it is part of the file name, ID, or link itself.\\n\\n2.  **Total Count:** Begin by stating the total number of unique results found using the variable: **{{ $json.Results.length }}**.\\n\\n3.  **Process All Results:** Iterate through ALL image results provided in the input data. Do not skip or limit any result.\\n\\n4.  **Result Structure:** For EACH image, you must generate ONE continuous paragraph that follows this structure:\\n    * **Part A: File Details** (Filename({{ $json.Filename }}), ID({{ $json.id }}), Download Link({{ $json.downloadLink }})).\\n    * **Part B: Detailed Description** (Rich, full-sentence description, **no more than 30 words**).\\n    * **Part C: Keywords & Tags** (Naturally integrated into the description paragraph).\\n\\n--- TEMPLATE & REQUIREMENTS ---\\n\\nI found **{{ $json.Results.length }}** total results.\\n\\n\\nThe  result 1 is **[Filename]** (ID: **[ID]**, Download Link: **[Download Link]**). **[Detailed Description goes here.]** Naturally include clear English keywords for: **Objects, People, Scene/Setting, Activities, Emotions/Atmosphere, and Primary Colors** within the same paragraph.\\n\\nthe result 2 is...\\n\\n[if the result is more than 1, list out all the result ]\\n\\nAnd so on.\\n\\n\\n\\n\\n\\n\\n\"",
+        "options": {
+          "passthroughBinaryImages": true
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        928,
+        480
+      ],
+      "id": "3bf10950-def0-41e4-bb3c-65e8971fc19b",
+      "name": "Photo RAG Agent1"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        928,
+        672
+      ],
+      "id": "cfcfec4f-1f62-4554-85c7-912a6d3c675f",
+      "name": "Google Gemini Chat Model1",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "9IYG0lkPaUq6HiO6",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldsToAggregate": {
+          "fieldToAggregate": [
+            {
+              "fieldToAggregate": "Results"
+            },
+            {
+              "fieldToAggregate": "Filename"
+            },
+            {
+              "fieldToAggregate": "id"
+            },
+            {
+              "fieldToAggregate": "downloadLink"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        496,
+        480
+      ],
+      "id": "456d57e0-1b94-47e6-8936-6eb47856aa05",
+      "name": "Aggregate"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        336,
+        480
+      ],
+      "id": "171f9bad-6ddf-4142-beac-d1b93599ff67",
+      "name": "Merge"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Postgres PGVector Store",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Separate Description and Filename": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Default Data Loader": {
+      "ai_document": [
+        [
+          {
+            "node": "Postgres PGVector Store",
+            "type": "ai_document",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings Google Gemini": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Postgres PGVector Store",
+            "type": "ai_embedding",
+            "index": 0
+          },
+          {
+            "node": "Postgres PGVector Store2",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres PGVector Store2": {
+      "ai_tool": [
+        [
+          {
+            "node": "Photo RAG Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Split Results Array",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Photo RAG Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean & Parse LLM Output": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Results Array": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Pagination Params": {
+      "main": [
+        [
+          {
+            "node": "List Images from Drive",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Set Pagination Params",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List Images from Drive": {
+      "main": [
+        [
+          {
+            "node": "Split Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Files": {
+      "main": [
+        [
+          {
+            "node": "Batch Images",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Batch Images": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Download Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Vision Analysis": {
+      "main": [
+        [
+          {
+            "node": "Separate Description and Filename",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Image": {
+      "main": [
+        [
+          {
+            "node": "Gemini Vision Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chat Trigger": {
+      "main": [
+        [
+          {
+            "node": "Photo RAG Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Photo RAG Agent": {
+      "main": [
+        [
+          {
+            "node": "Clean & Parse LLM Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chat Memory (Postgres)": {
+      "ai_memory": [
+        [
+          {
+            "node": "Photo RAG Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Edit Fields2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields1": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields2": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Photo RAG Agent1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate": {
+      "main": [
+        [
+          {
+            "node": "Photo RAG Agent1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "e3cf15ac-673c-4a88-a85e-268c46de4978",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "70cde6912cea58aaa19ec5aa40b4ca0767ac5a177606bc4aaa515a3d351b9b12"
+  },
+  "id": "odz7Miw6i9MTqSHj",
+  "tags": []
+}

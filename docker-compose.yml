@@ -1,0 +1,135 @@
+version: '3.8'
+services:
+ # -----------------------------------------------------
+ # 1. IMMICH 堆疊服務 (為 Immich 應用程式專用)
+ # -----------------------------------------------------
+ database:
+   image: ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0@sha256:bcf63357191b76a916ae5eb93464d65c07511da41e3bf7a8416db519b40b1c23
+   container_name: immich_postgres
+   restart: always
+   platform: linux/amd64
+   env_file:
+     - .env
+   environment:
+     POSTGRES_USER: ${DB_USERNAME:-postgres}
+     POSTGRES_PASSWORD: ${DB_PASSWORD}
+     POSTGRES_DB: ${DB_DATABASE_NAME:-immich}
+   healthcheck:
+     test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-postgres} -d ${DB_DATABASE_NAME:-immich}"]
+     interval: 5s
+     timeout: 10s
+     retries: 20
+     start_period: 40s
+   volumes:
+     - /Users/fulam/immich-app/postgres:/var/lib/postgresql/data
+   networks:
+     - ai-net
+ redis:
+   image: docker.io/valkey/valkey:8@sha256:81db6d39e1bba3b3ff32bd3a1b19a6d69690f94a3954ec131277b9a26b95b3aa
+   container_name: immich_redis
+   restart: always
+   healthcheck:
+     test: ["CMD", "redis-cli", "ping"]
+     interval: 10s
+     timeout: 5s
+     retries: 5
+   networks:
+     - ai-net
+ immich_server:
+   image: ghcr.io/immich-app/immich-server:${IMMICH_VERSION:-release}
+   container_name: immich_server
+   restart: always
+   ports:
+     - "2283:2283"
+   expose:
+     - "3001"
+   env_file:
+     - .env
+   environment:
+     NODE_ENV: production
+     NODE_HOST: "0.0.0.0"
+     IMMICH_HOST: "0.0.0.0"
+     DB_HOST: database
+     DB_USERNAME: ${DB_USERNAME:-postgres}
+     DB_PASSWORD: ${DB_PASSWORD}
+     DB_DATABASE_NAME: ${DB_DATABASE_NAME:-immich}
+     REDIS_HOSTNAME: redis
+     REDIS_PORT: 6379
+     JWT_SECRET: ${JWT_SECRET}
+     IMMICH_VERSION_CHECK: "false"
+   volumes:
+     - /Users/fulam/immich-library:/usr/src/app/upload
+     - model-cache:/usr/src/app/model-cache
+   depends_on:
+     database:
+       condition: service_healthy
+     redis:
+       condition: service_healthy
+   networks:
+     - ai-net
+ immich_machine_learning:
+   image: ghcr.io/immich-app/immich-machine-learning:${IMMICH_VERSION:-release}
+   container_name: immich_machine_learning
+   restart: always
+   env_file:
+     - .env
+   volumes:
+     - model-cache:/cache
+   networks:
+     - ai-net
+ # -----------------------------------------------------
+ # 2. RAG/AI 堆疊服務 (Ollama, n8n, PGVector for n8n)
+ # -----------------------------------------------------
+ ollama:
+   image: ollama/ollama:latest
+   container_name: ollama
+   restart: always
+   ports:
+     - "11434:11434"
+   volumes:
+     - ./ollama_data:/root/.ollama
+   networks:
+     - ai-net
+    
+ # 🆕 專供 n8n 進行 RAG 向量儲存的 PGVector 服務
+ pgvector_n8n:
+   image: ankane/pgvector:latest
+   container_name: pgvector_n8n
+   restart: always
+   environment:
+     POSTGRES_USER: n8n_user
+     POSTGRES_PASSWORD: n8n_password
+     POSTGRES_DB: n8n_vector_db
+   volumes:
+     - n8n_pgvector_data:/var/lib/postgresql/data
+   networks:
+     - ai-net
+ n8n:
+   image: n8nio/n8n:latest
+   container_name: n8n
+   restart: always
+   ports:
+     - "5678:5678"
+   environment:
+     N8N_HOST: localhost
+     N8N_PORT: 5678
+     N8N_PROTOCOL: http
+     NODE_ENV: production
+   volumes:
+     - ./n8n_data:/home/node/.n8n
+   networks:
+     - ai-net
+   depends_on:
+     ollama:
+       condition: service_started
+     pgvector_n8n:
+       condition: service_started # 確保向量DB先啟動
+# -----------------------------------------------------
+# 3. 網路和數據卷
+# -----------------------------------------------------
+networks:
+ ai-net:
+   driver: bridge
+volumes:
+ model-cache:
+ n8n_pgvector_data: # 🆕 新增 n8n 向量數據卷

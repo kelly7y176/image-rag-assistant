@@ -1,0 +1,21 @@
+# Ignore Environment Variables and Credentials
+.env
+
+# Ignore n8n sensitive files
+.n8n
+
+# Ignore downloaded binaries or large files
+*.zip
+*.tar
+*.log
+*.sqlite
+*.db
+
+# Ignore node modules
+node_modules/
+
+# Ignore personal files
+*.jpg
+*.jpeg
+*.png
+/data/
