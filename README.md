@@ -1,7 +1,10 @@
 # 🌉 Cross-Application Image RAG Assistant (Google Drive + n8n + Gemini)
 
+You can visit the demo video here:
+[➡️ Demo Video](https://youtu.be/DZQ9J0ONtHQ)
+
 <div>
-   <!-- <img align="left" align="left" alt="HTML" width="100%" style="padding-right:10px;" src="https://i.imgur.com/GgZC4B1.jpeg" /> -->
+   <img align="left" align="left" alt="HTML" width="100%" style="padding-right:10px;" src="https://i.imgur.com/mc4ZHFI.jpeg" />
 </div>
 
 ## Project Overview
