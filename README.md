@@ -26,10 +26,10 @@ This is an advanced application that integrates the Google Drive photo managemen
 <br />├── docker-compose.yml # Configuration to launch Google Drive, n8n, Gemini, and DB services.
 <br />├── .env.example # Template for API keys and credentials (NOT INCLUDE REAL KEYS).
 <br />├── README.md # Project documentation.
-<br />├── architecture*diagram.png # System architecture diagram (REQUIRED for submission).
+<br />├── architecture\*diagram.png # System architecture diagram (REQUIRED for submission).
 <br />├── .gitignore # Specifies files to be ignored by Git (e.g., .env file).
 <br />├── n8n-workflows/
-<br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└── Google Drive Image RAG Indexer + Chat* (13)\_Final.json # The core RAG workflow.
+<br />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└── gdrive-image-rag-final.json # The core RAG workflow.
 
 <!-- Cover -->
 <br />
