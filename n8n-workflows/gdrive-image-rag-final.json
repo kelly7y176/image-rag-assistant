@@ -200,7 +200,7 @@
     },
     {
       "parameters": {
-        "content": "## How to use this workflow:\n\n**Index your photos:** \nClick 'Manual Trigger' to scan your Google Drive. This uses Gemini Vision to \"look\" at your images and save them to the Postgres database.\n\n**Chat with your library:** \nOpen the Chat Trigger. You can ask:\n\n\"Show me photos of my cat.\" \n\"What did I do in 2020?\" \n\"How many photos of my cat?\"\n\nRequirements: Ensure your Google Drive, Postgres, and Gemini API credentials are all active.\n",
+        "content": "## How to use this workflow:\n\n**Index your photos:** \nClick 'Manual Trigger' to scan your Google Drive. This uses Gemini Vision to \"look\" at your images and save them to the Postgres database.\n\n**Chat with your library:** \nOpen the Chat Trigger. You can ask:\n\n\"Find the photos of my cat.\" \n\"What did I do in 2020?\" \n\"How many photos of my cat?\"\n\nRequirements: Ensure your Google Drive, Postgres, and Gemini API credentials are all active.\n",
         "height": 320,
         "width": 720
       },
@@ -438,7 +438,7 @@
             {
               "id": "7f6ae9e1-aaeb-4ca7-a5bc-23cb71fe82c5",
               "leftValue": "={{ $json.query_data.Results.length }}",
-              "rightValue": 1,
+              "rightValue": 0,
               "operator": {
                 "type": "number",
                 "operation": "gt"
@@ -902,7 +902,7 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "aadee008-f471-4df0-9449-69b21e0fd51d",
+  "versionId": "bd7a1f28-c9b0-468a-a946-c133fb75d405",
   "meta": {
     "instanceId": "70cde6912cea58aaa19ec5aa40b4ca0767ac5a177606bc4aaa515a3d351b9b12"
   },
