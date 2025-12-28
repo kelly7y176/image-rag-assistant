@@ -48,12 +48,12 @@ This is an advanced application that integrates the Google Drive photo managemen
 
 Start the entire application stack using Docker Compose. This will launch Google Drive, n8n, Gemini, and both database services.
 
-```bash
-docker-compose up -d
-Step 3: Import and Activate n8n Workflow
+`docker-compose up -d`
+
+### Step 3: Import and Activate n8n Workflow
+
 Access the n8n interface (typically at http://localhost:5678).
 
-Import the workflow file located at n8n-workflows/Google Drive Image RAG Indexer + Chat_ (13)_Final.json.
+Import the workflow file located at n8n-workflows/gdrive-image-rag-final.json.
 
 Activate the workflow and configure the necessary credentials (e.g., set up the Google Drive OAuth credentials within the n8n nodes).
-```
