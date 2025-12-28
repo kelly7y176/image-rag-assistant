@@ -200,13 +200,13 @@
     },
     {
       "parameters": {
-        "content": "## How to use this workflow:\n\n**Index your photos:** \nClick 'Manual Trigger' to scan your Google Drive. This uses Gemini Vision to \"look\" at your images and save them to the Postgres database.\n\n**Chat with your library:** \nOpen the Chat Trigger. You can ask:\n\n\"Find the photos of my cat.\" \n\"What did I do in 2020?\" \n\"How many photos of my cat?\"\n\nRequirements: Ensure your Google Drive, Postgres, and Gemini API credentials are all active.\n",
+        "content": "## How to use this workflow:\nThis n8n workflow is a sophisticated Image RAG (Retrieval-Augmented Generation) System. It essentially creates a bridge between your Google Drive images and a searchable database, allowing you to \"chat\" with your photo library.\n\n**Index your photos:** \nClick 'Manual Trigger' to scan your Google Drive. This uses Gemini Vision to \"look\" at your images and save them to the Postgres database.\n\n**Chat with your library:** \nOpen the Chat Trigger. You can ask:\n\n\"Find the photos of my cat.\" \n\"What did I do in 2020?\" \n\"How many photos of my cat?\"\n\nRequirements: Ensure your Google Drive, Postgres, and Gemini API credentials are all active.\n",
         "height": 320,
-        "width": 720
+        "width": 816
       },
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [-832, -192],
+      "position": [-928, -192],
       "id": "097e4295-7a51-471f-a5e0-175a3ab81170",
       "name": "Sticky Note1"
     },
@@ -559,12 +559,12 @@
       "parameters": {
         "content": "## Zone 2: The Interaction Layer (The \"Chat\") \nThis handles the user's questions and decides how to answer.\n",
         "height": 512,
-        "width": 720,
+        "width": 816,
         "color": 4
       },
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [-832, 192],
+      "position": [-928, 192],
       "id": "a4125798-895c-426a-a51f-ad518fa0171a",
       "name": "Sticky Note2"
     },
@@ -902,7 +902,7 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "bd7a1f28-c9b0-468a-a946-c133fb75d405",
+  "versionId": "1ad94bf6-c369-4d11-a75e-10317809cc3b",
   "meta": {
     "instanceId": "70cde6912cea58aaa19ec5aa40b4ca0767ac5a177606bc4aaa515a3d351b9b12"
   },
